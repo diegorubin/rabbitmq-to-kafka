@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 amiquip = { version = "0.3", default-features = false }
+rdkafka = { version = "0.23", features = ["cmake-build"] }
