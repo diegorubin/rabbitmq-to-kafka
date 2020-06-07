@@ -1,0 +1,8 @@
+[package]
+name = "generate-event"
+version = "0.1.0"
+authors = ["Diego Rubin <rubin.diego@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+amiquip = { version = "0.3", default-features = false }
