@@ -1,6 +1,6 @@
 use amiquip::{
-    AmqpProperties, AmqpValue, Connection, ConsumerMessage, ConsumerOptions, QueueDeclareOptions,
-    Result,
+    AmqpProperties, AmqpValue, Connection, ConsumerMessage, ConsumerOptions,
+    ExchangeDeclareOptions, ExchangeType, FieldTable, QueueDeclareOptions, Result,
 };
 use rdkafka::config::ClientConfig;
 use rdkafka::message::OwnedHeaders;
@@ -24,21 +24,41 @@ fn main() -> Result<()> {
         Err(e) => println!("Couldn't read KAFKA_BROKER ({})", e),
     };
 
+    let mut topic = String::from("events");
+    match env::var("KAFKA_TOPIC") {
+        Ok(value) => topic = value.to_owned(),
+        Err(e) => println!("Couldn't read KAFKA_TOPIC ({})", e),
+    };
+
     let mut rabbitmq_url = String::from("amqp://guest:guest@localhost:5672");
     match env::var("RABBITMQ_URL") {
         Ok(value) => rabbitmq_url = value.to_owned(),
         Err(e) => println!("Couldn't read RABBITMQ_URL ({})", e),
     };
 
-    let mut topic = String::from("topic");
-    match env::var("KAFKA_TOPIC") {
-        Ok(value) => topic = value.to_owned(),
-        Err(e) => println!("Couldn't read KAFKA_TOPIC ({})", e),
+    let mut rabbitmq_exchange = String::from("exchange");
+    match env::var("RABBITMQ_EXCHANGE") {
+        Ok(value) => rabbitmq_exchange = value.to_owned(),
+        Err(e) => println!("Couldn't read RABBITMQ_EXCHANGE ({})", e),
+    };
+
+    let mut rabbitmq_queue = String::from("queue");
+    match env::var("RABBITMQ_QUEUE") {
+        Ok(value) => rabbitmq_queue = value.to_owned(),
+        Err(e) => println!("Couldn't read RABBITMQ_QUEUE ({})", e),
     };
 
     let mut connection = Connection::insecure_open(&*rabbitmq_url)?;
     let channel = connection.open_channel(None)?;
-    let queue = channel.queue_declare("hello", QueueDeclareOptions::default())?;
+
+    let exchange = channel.exchange_declare(
+        ExchangeType::Direct,
+        rabbitmq_exchange,
+        ExchangeDeclareOptions::default(),
+    )?;
+    let queue = channel.queue_declare(rabbitmq_queue, QueueDeclareOptions::default())?;
+
+    channel.queue_bind(queue.name(), exchange.name(), "", FieldTable::default())?;
 
     let producer: &FutureProducer = &ClientConfig::new()
         .set("bootstrap.servers", &*brokers)
