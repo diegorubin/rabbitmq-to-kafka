@@ -363,6 +363,7 @@ name = "generate-event"
 version = "0.1.0"
 dependencies = [
  "amiquip",
+ "libloading",
  "rdkafka",
 ]
 
@@ -513,6 +514,15 @@ dependencies = [
  "libc",
  "libz-sys",
  "pkg-config",
+]
+
+[[package]]
+name = "libloading"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cadb8e769f070c45df05c78c7520eb4cd17061d4ab262e43cfc68b4d00ac71c"
+dependencies = [
+ "winapi 0.3.8",
 ]
 
 [[package]]

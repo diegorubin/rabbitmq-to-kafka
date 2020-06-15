@@ -1,11 +1,17 @@
 use amiquip::{
-    AmqpProperties, AmqpValue, Connection, ConsumerMessage, ConsumerOptions,
-    ExchangeDeclareOptions, ExchangeType, FieldTable, QueueDeclareOptions, Result,
+    Connection, ConsumerMessage, ConsumerOptions, ExchangeDeclareOptions, ExchangeType, FieldTable,
+    QueueDeclareOptions, Result,
 };
+use libloading::Library;
 use rdkafka::config::ClientConfig;
 use rdkafka::message::OwnedHeaders;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use std::env;
+
+struct TransformResult {
+    key: String,
+    body: String,
+}
 
 fn produce(producer: &FutureProducer, topic_name: &str, key: &str, message: &str) {
     producer.send(
@@ -18,6 +24,17 @@ fn produce(producer: &FutureProducer, topic_name: &str, key: &str, message: &str
 }
 
 fn main() -> Result<()> {
+    let mut transform_lib_path = String::from("transform-lib/target/debug/libtransform_lib.so");
+    match env::var("TRANSFORM_LIB_PATH") {
+        Ok(value) => transform_lib_path = value.to_owned(),
+        Err(e) => println!("Couldn't read TRANSFORM_LIB_PATH ({})", e),
+    };
+
+    let lib = Library::new(transform_lib_path).expect("library not found");
+
+    let transform: libloading::Symbol<fn(message: String) -> Box<TransformResult>> =
+        unsafe { lib.get(b"transform") }.expect("error on load symbol");
+
     let mut brokers = String::from("localhost:9092");
     match env::var("KAFKA_BROKER") {
         Ok(value) => brokers = value.to_owned(),
@@ -72,25 +89,14 @@ fn main() -> Result<()> {
     for (i, message) in consumer.receiver().iter().enumerate() {
         match message {
             ConsumerMessage::Delivery(delivery) => {
-                let properties: &AmqpProperties = &delivery.properties;
-                let mut key: String = String::from("unknown");
-
-                match properties.headers() {
-                    Some(headers) => {
-                        if headers.contains_key("key") {
-                            let content_key = &headers["key"];
-                            match content_key {
-                                AmqpValue::LongString(content) => key = content.to_string(),
-                                _ => println!("invalid key type"),
-                            }
-                        }
-                    }
-                    None => {}
-                }
-
                 let body = String::from_utf8_lossy(&delivery.body);
-                println!("({:>3}) Received {}:[{}]", i, key, body);
-                produce(producer, &*topic, &*key, &format!("{}", body));
+                let transformed = transform(format!("{}", body));
+
+                println!(
+                    "({:>3}) Received {}:[{}]",
+                    i, transformed.key, transformed.body
+                );
+                produce(producer, &*topic, &*transformed.key, &*transformed.body);
                 consumer.ack(delivery)?;
             }
             other => {
