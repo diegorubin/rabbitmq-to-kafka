@@ -32,7 +32,7 @@ fn main() -> Result<()> {
 
     let lib = Library::new(transform_lib_path).expect("library not found");
 
-    let transform: libloading::Symbol<fn(message: String) -> Box<TransformResult>> =
+    let transform: libloading::Symbol<fn(message: String) -> Result<TransformResult>> =
         unsafe { lib.get(b"transform") }.expect("error on load symbol");
 
     let mut brokers = String::from("localhost:9092");
@@ -90,14 +90,17 @@ fn main() -> Result<()> {
         match message {
             ConsumerMessage::Delivery(delivery) => {
                 let body = String::from_utf8_lossy(&delivery.body);
-                let transformed = transform(format!("{}", body));
-
-                println!(
-                    "({:>3}) Received {}:[{}]",
-                    i, transformed.key, transformed.body
-                );
-                produce(producer, &*topic, &*transformed.key, &*transformed.body);
-                consumer.ack(delivery)?;
+                match transform(format!("{}", body)) {
+                    Ok(transformed) => {
+                        println!(
+                            "({:>3}) Received {}:[{}]",
+                            i, transformed.key, transformed.body
+                        );
+                        produce(producer, &*topic, &*transformed.key, &*transformed.body);
+                        consumer.ack(delivery)?;
+                    }
+                    Err(e) => println!("Error on transform message {}", e),
+                }
             }
             other => {
                 println!("Consumer ended: {:?}", other);

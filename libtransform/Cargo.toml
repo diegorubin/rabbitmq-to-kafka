@@ -1,9 +1,9 @@
 [package]
-name = "transform-lib"
+name = "transform"
 version = "0.1.0"
 authors = ["Diego Rubin <rubin.diego@gmail.com>"]
 edition = "2018"
 
 [lib]
-name = "transform_lib"
+name = "transform"
 crate-type = ["dylib"] 

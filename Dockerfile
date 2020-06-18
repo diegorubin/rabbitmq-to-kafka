@@ -1,9 +1,9 @@
-FROM alpine
+FROM fedora:33
 
 RUN mkdir /application
 COPY target/release/generate-event /application/generate-event
-COPY transform-lib/target/release/libtransform_lib.so /application/libtransform_lib.so
 
-ENV  TRANSFORM_LIB_PATH=/application/libtransform_lib.so
+# Put your transform lib into this path
+ENV  TRANSFORM_LIB_PATH=/application/libtransform.so
 
 CMD ["/application/generate-event"]
