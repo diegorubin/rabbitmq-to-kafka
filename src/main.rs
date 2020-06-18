@@ -68,11 +68,11 @@ fn main() -> Result<()> {
     let mut connection = Connection::insecure_open(&*rabbitmq_url)?;
     let channel = connection.open_channel(None)?;
 
-    let exchange = channel.exchange_declare(
-        ExchangeType::Direct,
-        rabbitmq_exchange,
-        ExchangeDeclareOptions::default(),
-    )?;
+    let options = ExchangeDeclareOptions {
+        durable: true,
+        ..ExchangeDeclareOptions::default()
+    };
+    let exchange = channel.exchange_declare(ExchangeType::Direct, rabbitmq_exchange, options)?;
     let queue = channel.queue_declare(rabbitmq_queue, QueueDeclareOptions::default())?;
 
     channel.queue_bind(queue.name(), exchange.name(), "", FieldTable::default())?;
